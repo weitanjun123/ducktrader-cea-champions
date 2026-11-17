@@ -1,0 +1,55 @@
+{
+  "window": "Oct 2025 - Sep 2026",
+  "threshold_sgd_per_month": 5000,
+  "registered_agents": 38633,
+  "pct_below_threshold": 84.0,
+  "pct_zero_deals": 42.0,
+  "pct_below_2000": 69.9,
+  "median_deal_sides": 1.0,
+  "median_monthly_take_home": 300,
+  "agents_with_at_least_1_deal": {
+    "count": 22393,
+    "pct_below_threshold": 72.4,
+    "median_monthly_take_home": 2166
+  },
+  "pct_of_all_commission_earned_by_top_10pct": 59.0,
+  "inputs": {
+    "hdb_median_resale_price": 630000,
+    "hdb_median_rent": 3200,
+    "private_resale_price": 1700000,
+    "new_launch_price": 2000000,
+    "private_rent": 4300,
+    "room_rent": 1550,
+    "agent_split": 0.75
+  },
+  "breakeven": {
+    "HDB resale (seller side)": {
+      "take_home_per_deal": 9450,
+      "deals_per_year_to_reach_threshold": 6.3
+    },
+    "HDB resale (buyer side)": {
+      "take_home_per_deal": 4725,
+      "deals_per_year_to_reach_threshold": 12.7
+    },
+    "Condo resale (seller side)": {
+      "take_home_per_deal": 19125,
+      "deals_per_year_to_reach_threshold": 3.1
+    },
+    "New launch": {
+      "take_home_per_deal": 22500,
+      "deals_per_year_to_reach_threshold": 2.7
+    },
+    "Condo whole rental": {
+      "take_home_per_deal": 2419,
+      "deals_per_year_to_reach_threshold": 24.8
+    },
+    "HDB whole rental": {
+      "take_home_per_deal": 1800,
+      "deals_per_year_to_reach_threshold": 33.3
+    },
+    "Room rental": {
+      "take_home_per_deal": 581,
+      "deals_per_year_to_reach_threshold": 103.2
+    }
+  }
+}
