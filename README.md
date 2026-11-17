@@ -10,16 +10,19 @@ No prices are published by CEA, so rankings are by **deal count** only.
 ## Outputs (`output/`)
 | File | What |
 |---|---|
-| `champions_all_time_total.csv` | Top 500 by all deals (sales + rentals) |
-| `champions_all_time_sales.csv` | Top 500 by sales only (resale, new sale, sub-sale) |
-| `champions_all_time_rental.csv` | Top 200 by rentals |
+| `champions_total_since_2020.csv` | Top 500 by all deals since Jan 2020 (sales + rentals) |
+| `champions_sales_since_2020.csv` | Top 500 by sales only (resale, new launch, sub-sale) |
+| `champions_rental_since_2020.csv` | Top 200 by rentals |
+| `champions_hdb_resale_since_2017.csv` | Top 200 by HDB resale deals since Jan 2017 (CEA's longest record) |
+| `rising_stars_debut_2021_plus.csv` | Top 100 agents whose first deal was in 2021 or later |
 | `champions_consistency.csv` | Most years spent in a yearly top 100 |
-| `champions_by_year.csv` | Top 20 per year, total and sales-only |
-| `origins_*.csv` | Where the top 100 came from: agency, registration year, first-year segment |
+| `champions_by_year.csv` | Top 20 per year: all deals, sales only, HDB resale |
+| `origins_by_agency.csv` | Which agencies the champions are with now |
 | `summary.json` | Headline stats |
 
 ## Notes
 - Each row in CEA's data is one agent on one side of a deal. A deal where the agent represents both sides counts twice.
-- Agents active before 2017 appear to "start" in 2017, because that's where the data begins.
+- **Coverage:** Jan 2017–Dec 2019 has HDB resale only. All deal types start Jan 2020, so the main rankings use Jan 2020 onwards.
+- `switched_agency = Yes` means the agent's current CEA registration started after their first recorded deal (most likely a move to their current agency).
 - `status = Not currently registered` means the agent is no longer on CEA's active register.
 - Runs monthly on the 18th (after CEA's update on the 16th). Raw data is cached in `data/raw/`.

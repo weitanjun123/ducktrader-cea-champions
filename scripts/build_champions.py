@@ -94,6 +94,16 @@ def mode_or_blank(s: pd.Series) -> str:
 
 
 # ---------------------------------------------------------------- main
+# CEA data coverage: Jan 2017 - Dec 2019 has HDB resale ONLY.
+# All deal types (private sales, new launches, rentals) start Jan 2020.
+FULL_FROM = pd.Timestamp("2020-01-01")
+NEWCOMER_FROM = pd.Timestamp("2021-01-01")  # first deal on/after this = genuine newcomer
+
+
+def count(g, col, val):
+    return g[col].apply(lambda s: int((s == val).sum()))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--refresh", action="store_true", help="re-download raw data")
@@ -106,153 +116,177 @@ def main():
     # ---- transactions
     tx = tx[tx["salesperson_reg_num"] != ""].copy()
     tx["reg"] = tx["salesperson_reg_num"].str.upper()
-    tx["date"] = pd.to_datetime(tx["transaction_date"], format="%b-%Y", errors="coerce")
+    tx["date"] = pd.to_datetime(tx["transaction_date"].str.title(), format="%b-%Y", errors="coerce")
     tx = tx.dropna(subset=["date"])
     tx["year"] = tx["date"].dt.year
     tx["ttype"] = tx["transaction_type"].str.upper()
     tx["is_sale"] = tx["ttype"].isin(SALE_TYPES)
     tx["is_rental"] = tx["ttype"].str.contains("RENTAL")
     tx["seg"] = segment(tx["property_type"])
+    tx["is_hdb_resale"] = (tx["seg"] == "HDB") & (tx["ttype"] == "RESALE")
     tx["rep"] = tx["represented"].str.upper()
-    tx["area"] = tx["town"].where(tx["town"].str.len() > 1, tx["district"].radd("D"))
+    tx["area"] = tx["town"].where(tx["town"].str.len() > 1, "D" + tx["district"])
+    tx["kind"] = tx["seg"] + " " + tx["ttype"].where(~tx["is_rental"], "RENTAL")
 
-    data_from = tx["date"].min().strftime("%b %Y")
-    data_to = tx["date"].max().strftime("%b %Y")
-    last_full_year = tx["year"].max() - (1 if tx[tx["year"] == tx["year"].max()]["date"].dt.month.max() < 12 else 0)
+    data_to = tx["date"].max()
+    full = tx[tx["date"] >= FULL_FROM].copy()
 
-    # ---- salesperson register (current)
+    # ---- salesperson register (current snapshot)
     sp = sp.rename(columns={"registration_no": "reg", "registration_number": "reg"})
     sp["reg"] = sp["reg"].str.upper()
     sp = sp.drop_duplicates("reg")
-    sp_cols = ["reg", "registration_start_date", "registration_end_date",
-               "estate_agent_name", "estate_agent_license_no"]
-    sp = sp[[c for c in sp_cols if c in sp.columns]]
+    sp = sp[[c for c in ["reg", "registration_start_date", "estate_agent_name"] if c in sp.columns]]
 
-    # ---- per-agent profile
-    g = tx.groupby("reg")
+    # ---- per-agent profile (all deal types, Jan 2020 ->)
+    g = full.groupby("reg")
     prof = pd.DataFrame({
         "name": g["salesperson_name"].agg(mode_or_blank),
         "total_deals": g.size(),
         "sales_deals": g["is_sale"].sum(),
         "rental_deals": g["is_rental"].sum(),
-        "hdb_deals": g["seg"].apply(lambda s: (s == "HDB").sum()),
-        "private_deals": g["seg"].apply(lambda s: (s == "PRIVATE").sum()),
-        "new_sale_deals": g["ttype"].apply(lambda s: (s == "NEW SALE").sum()),
-        "first_deal": g["date"].min().dt.strftime("%Y-%m"),
+        "hdb_deals": count(g, "seg", "HDB"),
+        "private_deals": count(g, "seg", "PRIVATE"),
+        "new_launch_deals": count(g, "ttype", "NEW SALE"),
+        "rep_buyer": count(g, "rep", "BUYER"),
+        "rep_seller": count(g, "rep", "SELLER"),
+        "rep_landlord": count(g, "rep", "LANDLORD"),
+        "rep_tenant": count(g, "rep", "TENANT"),
+        "top_area": g["area"].agg(mode_or_blank),
+        "main_business": g["kind"].agg(mode_or_blank),
         "last_deal": g["date"].max().dt.strftime("%Y-%m"),
         "active_years": g["year"].nunique(),
-        "top_area": g["area"].agg(mode_or_blank),
     })
-    for side in ["BUYER", "SELLER", "LANDLORD", "TENANT"]:
-        prof[f"rep_{side.lower()}"] = g["rep"].apply(lambda s, side=side: (s == side).sum())
-
-    per_year = tx.groupby(["reg", "year"]).agg(deals=("reg", "size"), sales=("is_sale", "sum")).reset_index()
-    best = per_year.sort_values("deals", ascending=False).drop_duplicates("reg").set_index("reg")
+    py = full.groupby(["reg", "year"]).agg(deals=("reg", "size"), sales=("is_sale", "sum")).reset_index()
+    best = py.sort_values("deals", ascending=False).drop_duplicates("reg").set_index("reg")
     prof["peak_year"] = best["year"]
     prof["peak_year_deals"] = best["deals"]
-    first_year = per_year.sort_values("year").drop_duplicates("reg").set_index("reg")
-    prof["rookie_year_deals"] = first_year["deals"]
-    # what they started out doing (first 12 months of recorded deals)
-    tx = tx.join(g["date"].min().rename("first_date"), on="reg")
-    early = tx[tx["date"] < tx["first_date"] + pd.DateOffset(months=12)]
-    early_mix = (early["seg"] + " " + early["ttype"].where(~early["is_rental"], "RENTAL"))
-    prof["started_in"] = early_mix.groupby(early["reg"]).agg(mode_or_blank)
+    prof["deals_per_active_year"] = (prof["total_deals"] / prof["active_years"]).round(1)
+    prof["sales_share_pct"] = (100 * prof["sales_deals"] / prof["total_deals"]).round(1)
 
-    prof = prof.reset_index().merge(sp, on="reg", how="left")
+    # ---- HDB resale since 2017 (the longest record CEA has) + debut date
+    ga = tx.groupby("reg")
+    longrun = pd.DataFrame({
+        "hdb_resale_since_2017": ga["is_hdb_resale"].sum(),
+        "first_deal_date": ga["date"].min(),
+    })
+    prof = prof.join(longrun, how="outer")
+    prof["name"] = prof["name"].fillna(ga["salesperson_name"].agg(mode_or_blank))
+    for c in ["total_deals", "sales_deals", "rental_deals", "hdb_deals", "private_deals", "new_launch_deals",
+              "rep_buyer", "rep_seller", "rep_landlord", "rep_tenant", "active_years"]:
+        prof[c] = prof[c].fillna(0).astype(int)
+    prof["first_deal"] = prof["first_deal_date"].dt.strftime("%Y-%m")
+    prof["first_deal"] = prof["first_deal"].where(prof["first_deal_date"] > pd.Timestamp("2017-01-31"),
+                                                  "2017-01 or earlier")
+
+    # ---- origins: newcomers (first deal of any kind from 2021) -> what they started doing
+    prof["newcomer"] = prof["first_deal_date"] >= NEWCOMER_FROM
+    tx = tx.join(prof["first_deal_date"], on="reg")
+    early = tx[tx["date"] < tx["first_deal_date"] + pd.DateOffset(months=12)]
+    eg = early.groupby("reg")
+    prof["started_in"] = eg["kind"].agg(mode_or_blank)
+    prof["rookie_12m_deals"] = eg.size()
+    prof.loc[~prof["newcomer"], "started_in"] = "Already active before 2021"
+    prof.loc[~prof["newcomer"], "rookie_12m_deals"] = pd.NA
+
+    # ---- current agency + whether they moved agency after their first deal
+    prof = prof.reset_index().rename(columns={"index": "reg"}).merge(sp, on="reg", how="left")
     prof["status"] = prof["estate_agent_name"].notna().map({True: "Active", False: "Not currently registered"})
     prof["estate_agent_name"] = prof["estate_agent_name"].fillna("")
-    prof["reg_start_year"] = pd.to_datetime(prof.get("registration_start_date"), errors="coerce").dt.year
-    prof["sales_share_pct"] = (100 * prof["sales_deals"] / prof["total_deals"]).round(1)
-    prof["deals_per_active_year"] = (prof["total_deals"] / prof["active_years"]).round(1)
+    reg_since = pd.to_datetime(prof["registration_start_date"], errors="coerce")
+    prof["current_agency_since"] = reg_since.dt.strftime("%Y-%m").fillna("")
+    moved = reg_since > prof["first_deal_date"] + pd.DateOffset(months=1)
+    prof["switched_agency"] = moved.map({True: "Yes", False: ""})
 
     # ---- rankings
-    prof["rank_all"] = prof["total_deals"].rank(method="min", ascending=False).astype(int)
-    prof["rank_sales"] = prof["sales_deals"].rank(method="min", ascending=False).astype(int)
-    prof["rank_rental"] = prof["rental_deals"].rank(method="min", ascending=False).astype(int)
+    for col, rk in [("total_deals", "rank_total"), ("sales_deals", "rank_sales"),
+                    ("rental_deals", "rank_rental"), ("hdb_resale_since_2017", "rank_hdb_resale")]:
+        prof[rk] = prof[col].rank(method="min", ascending=False).astype(int)
 
-    # years spent in each year's top 100 (consistency) + first year they broke in
-    per_year["yr_rank"] = per_year.groupby("year")["deals"].rank(method="min", ascending=False)
-    top_years = per_year[per_year["yr_rank"] <= TOP_N]
-    prof = prof.merge(top_years.groupby("reg").size().rename("years_in_top100"), on="reg", how="left")
+    py["yr_rank"] = py.groupby("year")["deals"].rank(method="min", ascending=False)
+    top_years = py[py["yr_rank"] <= TOP_N]
+    prof = prof.merge(top_years.groupby("reg").size().rename("years_in_yearly_top100"), on="reg", how="left")
     prof = prof.merge(top_years.groupby("reg")["year"].min().rename("first_top100_year"), on="reg", how="left")
-    prof["years_in_top100"] = prof["years_in_top100"].fillna(0).astype(int)
-    prof["years_to_top100"] = prof["first_top100_year"] - pd.to_datetime(prof["first_deal"]).dt.year
+    prof["years_in_yearly_top100"] = prof["years_in_yearly_top100"].fillna(0).astype(int)
+    prof["years_to_top100"] = (prof["first_top100_year"] - prof["first_deal_date"].dt.year).where(prof["newcomer"])
 
-    cols = ["rank_all", "rank_sales", "rank_rental", "name", "reg", "status", "estate_agent_name",
-            "reg_start_year", "first_deal", "last_deal", "active_years",
+    cols = ["rank_total", "rank_sales", "rank_rental", "rank_hdb_resale", "name", "reg", "status",
+            "estate_agent_name", "current_agency_since", "switched_agency",
             "total_deals", "sales_deals", "rental_deals", "sales_share_pct",
-            "hdb_deals", "private_deals", "new_sale_deals",
+            "hdb_deals", "private_deals", "new_launch_deals", "hdb_resale_since_2017",
             "rep_buyer", "rep_seller", "rep_landlord", "rep_tenant",
-            "peak_year", "peak_year_deals", "deals_per_active_year",
-            "rookie_year_deals", "started_in", "top_area",
-            "years_in_top100", "first_top100_year", "years_to_top100"]
+            "main_business", "top_area", "peak_year", "peak_year_deals", "deals_per_active_year",
+            "first_deal", "last_deal", "newcomer", "started_in", "rookie_12m_deals",
+            "years_in_yearly_top100", "first_top100_year", "years_to_top100"]
     prof = prof[cols]
 
-    prof.sort_values("rank_all").head(500).to_csv(OUT / "champions_all_time_total.csv", index=False)
-    prof.sort_values("rank_sales").head(500).to_csv(OUT / "champions_all_time_sales.csv", index=False)
-    prof.sort_values("rank_rental").head(200).to_csv(OUT / "champions_all_time_rental.csv", index=False)
-    prof.sort_values(["years_in_top100", "total_deals"], ascending=False).head(200) \
+    prof.sort_values("rank_total").head(500).to_csv(OUT / "champions_total_since_2020.csv", index=False)
+    prof.sort_values("rank_sales").head(500).to_csv(OUT / "champions_sales_since_2020.csv", index=False)
+    prof.sort_values("rank_rental").head(200).to_csv(OUT / "champions_rental_since_2020.csv", index=False)
+    prof.sort_values("rank_hdb_resale").head(200).to_csv(OUT / "champions_hdb_resale_since_2017.csv", index=False)
+    prof[prof["newcomer"]].sort_values("total_deals", ascending=False).head(100) \
+        .to_csv(OUT / "rising_stars_debut_2021_plus.csv", index=False)
+    prof.sort_values(["years_in_yearly_top100", "total_deals"], ascending=False).head(200) \
         .to_csv(OUT / "champions_consistency.csv", index=False)
 
-    # ---- yearly champions (top 20 per year, total + sales)
+    # ---- yearly champions
     names = prof.set_index("reg")[["name", "estate_agent_name"]]
-    yearly = []
-    for metric in ["deals", "sales"]:
-        py = per_year.copy()
-        py["rank"] = py.groupby("year")[metric].rank(method="min", ascending=False)
-        py = py[py["rank"] <= 20].join(names, on="reg")
-        py["metric"] = "total" if metric == "deals" else "sales_only"
-        py["value"] = py[metric]
-        yearly.append(py[["year", "metric", "rank", "name", "reg", "estate_agent_name", "value"]])
-    pd.concat(yearly).sort_values(["metric", "year", "rank"]).to_csv(OUT / "champions_by_year.csv", index=False)
+    out = []
+    for metric, src, label in [("deals", py, "all_deals"), ("sales", py, "sales_only")]:
+        d = src.copy()
+        d["rank"] = d.groupby("year")[metric].rank(method="min", ascending=False)
+        d = d[d["rank"] <= 20].join(names, on="reg")
+        d["list"], d["deals_in_year"] = label, d[metric]
+        out.append(d)
+    hr = tx[tx["is_hdb_resale"]].groupby(["reg", "year"]).size().rename("deals_in_year").reset_index()
+    hr["rank"] = hr.groupby("year")["deals_in_year"].rank(method="min", ascending=False)
+    hr = hr[hr["rank"] <= 20].join(names, on="reg")
+    hr["list"] = "hdb_resale"
+    out.append(hr)
+    yearly = pd.concat(out)[["list", "year", "rank", "name", "reg", "estate_agent_name", "deals_in_year"]]
+    yearly["rank"] = yearly["rank"].astype(int)
+    yearly.sort_values(["list", "year", "rank"]).to_csv(OUT / "champions_by_year.csv", index=False)
 
-    # ---- origins: where the top 100 came from
-    top = prof[prof["rank_all"] <= TOP_N]
+    # ---- origins summary for the champion groups
     everyone = prof[prof["total_deals"] > 0]
+    groups = {
+        "top100_total": prof[prof["rank_total"] <= TOP_N],
+        "top100_sales": prof[prof["rank_sales"] <= TOP_N],
+        "top100_hdb_resale": prof[prof["rank_hdb_resale"] <= TOP_N],
+    }
+    ag = pd.DataFrame({"all_agents_with_deals": everyone["estate_agent_name"].replace("", "(not registered now)").value_counts()})
+    for k, df in groups.items():
+        ag[k] = df["estate_agent_name"].replace("", "(not registered now)").value_counts()
+    ag = ag.fillna(0).astype(int)
+    ag["all_share_pct"] = (100 * ag["all_agents_with_deals"] / len(everyone)).round(1)
+    ag["top100_total_share_pct"] = (100 * ag["top100_total"] / TOP_N).round(1)
+    ag = ag[(ag[list(groups)].sum(axis=1) > 0) | (ag["all_agents_with_deals"] >= 200)]
+    ag.sort_values(["top100_total", "top100_sales"], ascending=False).to_csv(OUT / "origins_by_agency.csv", index_label="agency")
 
-    def share(df, col):
-        return df[col].replace("", "(not currently registered)").value_counts()
-
-    agency = pd.DataFrame({
-        "top100_agents": share(top, "estate_agent_name"),
-        "all_agents_with_deals": share(everyone, "estate_agent_name"),
-    }).fillna(0).astype(int)
-    agency["top100_share_pct"] = (100 * agency["top100_agents"] / len(top)).round(1)
-    agency["all_share_pct"] = (100 * agency["all_agents_with_deals"] / len(everyone)).round(1)
-    agency["over_representation_x"] = (agency["top100_share_pct"] / agency["all_share_pct"]).round(2)
-    agency.sort_values("top100_agents", ascending=False).to_csv(OUT / "origins_by_agency.csv", index_label="agency")
-
-    cohort = top["reg_start_year"].value_counts().sort_index()
-    cohort.rename("top100_agents").to_csv(OUT / "origins_by_registration_year.csv", index_label="reg_start_year")
-    top["started_in"].value_counts().rename("top100_agents") \
-        .to_csv(OUT / "origins_by_starting_segment.csv", index_label="started_in")
+    def describe(df):
+        return {
+            "count": int(len(df)),
+            "median_deals_since_2020": float(df["total_deals"].median()),
+            "median_sales_share_pct": float(df["sales_share_pct"].median()),
+            "switched_agency_pct": round(100 * (df["switched_agency"] == "Yes").mean(), 1),
+            "still_registered_pct": round(100 * (df["status"] == "Active").mean(), 1),
+            "active_before_2017_pct": round(100 * (df["first_deal"] == "2017-01 or earlier").mean(), 1),
+            "newcomers_2021_plus": int(df["newcomer"].sum()),
+            "top_agencies": df["estate_agent_name"].replace("", "(not registered now)").value_counts().head(6).to_dict(),
+            "main_business": df["main_business"].value_counts().head(5).to_dict(),
+        }
 
     summary = {
-        "data_from": data_from,
-        "data_to": data_to,
-        "last_full_year": int(last_full_year),
+        "data_to": data_to.strftime("%b %Y"),
+        "coverage_note": "Jan 2017-Dec 2019 = HDB resale only; all deal types from Jan 2020",
         "transaction_rows": int(len(tx)),
-        "agents_with_deals": int(len(everyone)),
+        "agents_with_deals_since_2020": int(len(everyone)),
         "agents_currently_registered": int(len(sp)),
-        "top10_all_time": prof.sort_values("rank_all").head(10)[
-            ["rank_all", "name", "estate_agent_name", "total_deals", "sales_deals", "rental_deals"]
-        ].to_dict("records"),
-        "top10_sales": prof.sort_values("rank_sales").head(10)[
-            ["rank_sales", "name", "estate_agent_name", "sales_deals", "total_deals"]
-        ].to_dict("records"),
-        "top100_median": {
-            "total_deals": float(top["total_deals"].median()),
-            "rookie_year_deals": float(top["rookie_year_deals"].median()),
-            "years_to_top100": float(top["years_to_top100"].median()),
-            "sales_share_pct": float(top["sales_share_pct"].median()),
-            "still_registered_pct": round(100 * (top["status"] == "Active").mean(), 1),
-        },
-        "all_agents_median": {
-            "total_deals": float(everyone["total_deals"].median()),
-            "rookie_year_deals": float(everyone["rookie_year_deals"].median()),
-        },
-        "top100_agencies": agency.sort_values("top100_agents", ascending=False).head(10)["top100_agents"].to_dict(),
-        "top100_started_in": top["started_in"].value_counts().head(8).to_dict(),
+        "all_agents": {"median_deals_since_2020": float(everyone["total_deals"].median()),
+                       "switched_agency_pct": round(100 * (everyone["switched_agency"] == "Yes").mean(), 1)},
+        **{k: describe(v) for k, v in groups.items()},
+        "rising_stars_started_in": prof[prof["newcomer"]].sort_values("total_deals", ascending=False)
+            .head(100)["started_in"].value_counts().to_dict(),
+        "all_newcomers_started_in": prof[prof["newcomer"]]["started_in"].value_counts().head(8).to_dict(),
     }
     (OUT / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
     print(json.dumps(summary, indent=2, default=str))
