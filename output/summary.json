@@ -1,0 +1,190 @@
+{
+  "data_from": "Jan 2017",
+  "data_to": "Nov 2026",
+  "last_full_year": 2025,
+  "transaction_rows": 1440223,
+  "agents_with_deals": 33090,
+  "agents_currently_registered": 38633,
+  "top10_all_time": [
+    {
+      "rank_all": 1,
+      "name": "KUAH KAI PIN, KAVIN",
+      "estate_agent_name": "ERA REALTY NETWORK PTE LTD",
+      "total_deals": 3246,
+      "sales_deals": 3004,
+      "rental_deals": 242
+    },
+    {
+      "rank_all": 2,
+      "name": "YEO LEE KIOW",
+      "estate_agent_name": "PROPNEX REALTY PTE. LTD.",
+      "total_deals": 2100,
+      "sales_deals": 228,
+      "rental_deals": 1872
+    },
+    {
+      "rank_all": 3,
+      "name": "CHEE KOK LEONG",
+      "estate_agent_name": "",
+      "total_deals": 1403,
+      "sales_deals": 1403,
+      "rental_deals": 0
+    },
+    {
+      "rank_all": 4,
+      "name": "MUHAMAD SOFIAN BIN ROSLAN",
+      "estate_agent_name": "PROPNEX REALTY PTE. LTD.",
+      "total_deals": 1384,
+      "sales_deals": 1384,
+      "rental_deals": 0
+    },
+    {
+      "rank_all": 5,
+      "name": "AOH LEONG CHUAN",
+      "estate_agent_name": "MINDLINK GROUPS PTE. LTD.",
+      "total_deals": 1344,
+      "sales_deals": 12,
+      "rental_deals": 1332
+    },
+    {
+      "rank_all": 6,
+      "name": "LIU MEIMEI",
+      "estate_agent_name": "PROPNEX REALTY PTE. LTD.",
+      "total_deals": 1251,
+      "sales_deals": 47,
+      "rental_deals": 1204
+    },
+    {
+      "rank_all": 7,
+      "name": "LIEW JIA XIAN",
+      "estate_agent_name": "PROPNEX REALTY PTE. LTD.",
+      "total_deals": 1192,
+      "sales_deals": 521,
+      "rental_deals": 671
+    },
+    {
+      "rank_all": 8,
+      "name": "CYRIL ARMAND TUZEMEN",
+      "estate_agent_name": "VESPER HOMES PTE. LTD.",
+      "total_deals": 1172,
+      "sales_deals": 34,
+      "rental_deals": 1138
+    },
+    {
+      "rank_all": 9,
+      "name": "KAN CHEE HWA",
+      "estate_agent_name": "HUTTONS ASIA PTE. LTD.",
+      "total_deals": 1170,
+      "sales_deals": 9,
+      "rental_deals": 1161
+    },
+    {
+      "rank_all": 10,
+      "name": "KHOO YI LIANG",
+      "estate_agent_name": "ERA REALTY NETWORK PTE LTD",
+      "total_deals": 1146,
+      "sales_deals": 112,
+      "rental_deals": 1034
+    }
+  ],
+  "top10_sales": [
+    {
+      "rank_sales": 1,
+      "name": "KUAH KAI PIN, KAVIN",
+      "estate_agent_name": "ERA REALTY NETWORK PTE LTD",
+      "sales_deals": 3004,
+      "total_deals": 3246
+    },
+    {
+      "rank_sales": 2,
+      "name": "CHEE KOK LEONG",
+      "estate_agent_name": "",
+      "sales_deals": 1403,
+      "total_deals": 1403
+    },
+    {
+      "rank_sales": 3,
+      "name": "MUHAMAD SOFIAN BIN ROSLAN",
+      "estate_agent_name": "PROPNEX REALTY PTE. LTD.",
+      "sales_deals": 1384,
+      "total_deals": 1384
+    },
+    {
+      "rank_sales": 4,
+      "name": "YUNA LIM",
+      "estate_agent_name": "SINGAPORE ESTATE AGENCY PTE. LTD.",
+      "sales_deals": 1078,
+      "total_deals": 1118
+    },
+    {
+      "rank_sales": 5,
+      "name": "NOOR HAIDI BIN ABDUL MALEK",
+      "estate_agent_name": "ERA REALTY NETWORK PTE LTD",
+      "sales_deals": 926,
+      "total_deals": 954
+    },
+    {
+      "rank_sales": 6,
+      "name": "NG SER LEONG",
+      "estate_agent_name": "PROPNEX REALTY PTE. LTD.",
+      "sales_deals": 814,
+      "total_deals": 815
+    },
+    {
+      "rank_sales": 7,
+      "name": "CHOI YONG SUK",
+      "estate_agent_name": "SINGAPORE ESTATE AGENCY PTE. LTD.",
+      "sales_deals": 803,
+      "total_deals": 815
+    },
+    {
+      "rank_sales": 8,
+      "name": "MUHAMMAD NAZRI BIN AWATH BAOBED",
+      "estate_agent_name": "ERA REALTY NETWORK PTE LTD",
+      "sales_deals": 794,
+      "total_deals": 794
+    },
+    {
+      "rank_sales": 9,
+      "name": "SANDY HONG XIAOMIAO",
+      "estate_agent_name": "ERA REALTY NETWORK PTE LTD",
+      "sales_deals": 782,
+      "total_deals": 791
+    },
+    {
+      "rank_sales": 10,
+      "name": "NONA ASIAH BINTE ASSAN @ NONA KIRANA",
+      "estate_agent_name": "PROPNEX REALTY PTE. LTD.",
+      "sales_deals": 707,
+      "total_deals": 710
+    }
+  ],
+  "top100_median": {
+    "total_deals": 600.5,
+    "rookie_year_deals": 13.5,
+    "years_to_top100": 2.0,
+    "sales_share_pct": 13.75,
+    "still_registered_pct": 98.0
+  },
+  "all_agents_median": {
+    "total_deals": 17.0,
+    "rookie_year_deals": 2.0
+  },
+  "top100_agencies": {
+    "PROPNEX REALTY PTE. LTD.": 36,
+    "ERA REALTY NETWORK PTE LTD": 20,
+    "HUTTONS ASIA PTE. LTD.": 8,
+    "TOKIO PROPERTY SERVICES PTE LTD": 3,
+    "ALISTER & LEE PROPERTIES": 2,
+    "JINSON PROPERTY PTE. LTD.": 2,
+    "(not currently registered)": 2,
+    "ORANGETEE & TIE PTE. LTD.": 2,
+    "SINGAPORE ESTATE AGENCY PTE. LTD.": 2,
+    "CENTURY 21 PTE. LTD.": 2
+  },
+  "top100_started_in": {
+    "HDB RESALE": 71,
+    "PRIVATE RENTAL": 24,
+    "HDB RENTAL": 5
+  }
+}
