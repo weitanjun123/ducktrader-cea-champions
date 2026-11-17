@@ -1,0 +1,51 @@
+name: Build CEA champion list
+
+on:
+  workflow_dispatch:
+    inputs:
+      refresh:
+        description: "Re-download raw data from data.gov.sg"
+        type: boolean
+        default: true
+  push:
+    paths:
+      - "scripts/**"
+      - ".github/workflows/build.yml"
+  schedule:
+    # CEA transaction records update on the 16th; run on the 18th, 09:17 SGT
+    - cron: "17 1 18 * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pandas requests
+      - name: Build
+        env:
+          DATAGOV_API_KEY: ${{ secrets.DATAGOV_API_KEY }}
+        run: |
+          REFRESH=""
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.refresh }}" = "true" ] || [ ! -f data/raw/transactions.csv.gz ]; then
+            REFRESH="--refresh"
+          fi
+          python scripts/build_champions.py $REFRESH
+      - name: Commit results
+        run: |
+          git config user.name "cea-champions-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data output
+          git diff --cached --quiet && exit 0
+          git commit -m "Update champion list $(date -u +%Y-%m-%d)"
+          git push
