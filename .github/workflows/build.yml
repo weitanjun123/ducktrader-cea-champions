@@ -41,6 +41,7 @@ jobs:
             REFRESH="--refresh"
           fi
           python scripts/build_champions.py $REFRESH
+          python scripts/income_estimate.py $REFRESH
       - name: Commit results
         run: |
           git config user.name "cea-champions-bot"
